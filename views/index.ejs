@@ -11,8 +11,102 @@
 	  integrity="sha256-hVVnYaiADRTO2PzUGmuLJr8BLUSjGIZsDYGmIJLv2b8="
 	  crossorigin="anonymous"></script>
 	<script src="semantic/dist/semantic.min.js"></script>
-<body>
-  <h1>First header</h1>
-</body>
-</html>
+  <script src="https://code.jquery.com/jquery.min.js"></script>
+  <link rel="stylesheet" href="https://unpkg.com/tachyons@4.9.1/css/tachyons.min.css"/>
+  <script src="https://unpkg.com/feather-icons/dist/feather.min.js"></script>
 
+  <script src="https://sdk.amazonaws.com/js/aws-sdk-2.16.0.min.js"></script>
+  <meta charset="UTF-8">
+<body>
+  <H1>Food Identifier</H1>
+  <input type="file" name="fileToUpload" id="fileToUpload" accept="image/*">
+  <p id="opResult"></p>
+</body>
+<script>
+
+  document.getElementById("fileToUpload").addEventListener("change", function (event) {
+    ProcessImage();
+  }, false);
+  
+  function DetectLabels(imageData) {
+    AWS.region = "us-east-1";
+    var rekognition = new AWS.Rekognition();
+    var params = {
+      Image: {
+        Bytes: imageData
+      }
+    };
+    rekognition.detectLabels(params, function (err, data) {
+
+      if (err) console.log(err, err.stack); // an error occurred
+      else {
+        console.log(data)
+        var table = "<table><tr><th>Food</th><th>Calroie Count</th></tr>";
+        for (var i = 0; i < data.Labels.length; i++) {
+             table += '<tr><td>' + data.Labels[i].Name +
+               '</td><td>' + 'CALORIES HERE' + '</td></tr>';
+           }
+           table += "</table>";
+           document.getElementById("opResult").innerHTML = table;
+      }
+    });
+  }
+
+  function ProcessImage() {
+    AnonLog();
+    var control = document.getElementById("fileToUpload");
+    var file = control.files[0];
+
+    // Load base64 encoded image 
+    var reader = new FileReader();
+    reader.onload = (function (theFile) {
+      return function (e) {
+        var img = document.createElement('img');
+        var image = null;
+        img.src = e.target.result;
+        var jpg = true;
+        try {
+          image = atob(e.target.result.split("data:image/jpeg;base64,")[1]);
+
+        } catch (e) {
+          jpg = false;
+        }
+        if (jpg == false) {
+          try {
+            image = atob(e.target.result.split("data:image/png;base64,")[1]);
+          } catch (e) {
+            alert("Not an image file Rekognition can process");
+            return;
+          }
+        }
+        //unencode image bytes for Rekognition DetectFaces API 
+        var length = image.length;
+        imageBytes = new ArrayBuffer(length);
+        var ua = new Uint8Array(imageBytes);
+        for (var i = 0; i < length; i++) {
+          ua[i] = image.charCodeAt(i);
+        }
+        //Call Rekognition  
+        DetectLabels(imageBytes);
+      };
+    })(file);
+    reader.readAsDataURL(file);
+  }
+  //Provides anonymous log on to AWS services
+  function AnonLog() {
+    
+    // Configure the credentials provider to use your identity pool
+    AWS.config.region = 'us-east-1'; // Region
+    AWS.config.credentials = new AWS.CognitoIdentityCredentials({
+      IdentityPoolId: 'us-east-1:af4575b4-a3de-4a33-81a5-543e8c0cc54d',
+    });
+    // Make the call to obtain credentials
+    AWS.config.credentials.get(function () {
+      // Credentials will be available when this function is called.
+      var accessKeyId = AWS.config.credentials.accessKeyId;
+      var secretAccessKey = AWS.config.credentials.secretAccessKey;
+      var sessionToken = AWS.config.credentials.sessionToken;
+    });
+  }
+</script>
+</html>
